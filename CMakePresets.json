@@ -1,0 +1,80 @@
+{
+  "version": 3,
+  "vendor": {
+    "conan": {}
+  },
+  "configurePresets": [
+    {
+      "name": "conan-common",
+      "description": "Common settings for Conan-based builds",
+      "hidden": true,
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_POLICY_DEFAULT_CMP0091": "NEW",
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "conan-release",
+      "displayName": "Conan Release",
+      "description": "Build with Conan-managed dependencies (Release mode)",
+      "inherits": "conan-common",
+      "binaryDir": "${sourceDir}/build/Release",
+      "toolchainFile": "${sourceDir}/build/Release/conan_toolchain.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "conan-debug",
+      "displayName": "Conan Debug",
+      "description": "Build with Conan-managed dependencies (Debug mode)",
+      "inherits": "conan-common",
+      "binaryDir": "${sourceDir}/build/Debug",
+      "toolchainFile": "${sourceDir}/build/Debug/conan_toolchain.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "build-conan-release",
+      "configurePreset": "conan-release",
+      "description": "Build in Release mode",
+      "jobs": 0
+    },
+    {
+      "name": "build-conan-debug",
+      "configurePreset": "conan-debug",
+      "description": "Build in Debug mode",
+      "jobs": 0
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "test-conan-release",
+      "configurePreset": "conan-release",
+      "description": "Run tests (Release mode)",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      }
+    },
+    {
+      "name": "test-conan-debug",
+      "configurePreset": "conan-debug",
+      "description": "Run tests (Debug mode)",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      }
+    }
+  ]
+}

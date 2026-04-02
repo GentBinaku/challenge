@@ -1,7 +1,20 @@
-CMAKE_VERSION(MINIMUM_REQUIRED VERSION 3.21)
-SET_PROJECT(Challenge)
+cmake_minimum_required(VERSION 3.21)
 
-SET(CMAKE_CXX_STANDARD 20)
-SET(CMAKE_CXX_STANDARD_REQUIRED ON)
-SET(CMAKE_CXX_EXTENSIONS OFF)
-SET(CMAKE_COMPILER_FLAGS "-Wall -Wextra -Wpedantic")
+# Disable modules support, this is broken with clang-tidy at the moment
+if(POLICY CMP0155)
+	cmake_policy(SET CMP0155 OLD)
+endif()
+
+project(challenge_project LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+add_subdirectory(plugin)
+add_subdirectory(app)
+
+include(CTest)
+if(BUILD_TESTING)
+	add_subdirectory(tests)
+endif()
