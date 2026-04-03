@@ -1,6 +1,8 @@
 find_package(GTest REQUIRED)
 
-add_executable(plugin_tests test_plugin.cpp)
+file(GLOB TEST_SOURCES "*.cpp")
+
+add_executable(plugin_tests ${TEST_SOURCES})
 
 set_target_properties(plugin_tests PROPERTIES RUNTIME_OUTPUT_DIRECTORY
                                               "${CMAKE_BINARY_DIR}/bin")
@@ -18,4 +20,4 @@ add_test(NAME plugin_tests COMMAND plugin_tests)
 
 set_tests_properties(plugin_tests
                      PROPERTIES ENVIRONMENT
-                     "PLUGIN_PATH=$<TARGET_FILE:plugin>;LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/bin")
+                     "PLUGIN_PATH=$<TARGET_FILE:plugin>;LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/lib")

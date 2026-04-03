@@ -35,7 +35,8 @@ class ChallengeProjectConan(ConanFile):
         deps = CMakeDeps(self)
         deps.generate()
 
-        bin_dir = os.path.join(self.build_folder, "bin")
+        lib_dir = os.path.join(self.build_folder, "lib")
         for dep in self.dependencies.values():
             for libdir in dep.cpp_info.libdirs:
-                copy(self, "*.so*", libdir, bin_dir)
+                copy(self, "*.so*", libdir, lib_dir)
+                copy(self, "*.dll", libdir, os.path.join(self.build_folder, "bin"))
