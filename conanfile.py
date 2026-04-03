@@ -1,6 +1,7 @@
-from conan import ConanFile
 from conan.tools.build import check_min_cppstd
 from conan.tools.cmake import CMakeDeps, CMakeToolchain, cmake_layout
+
+from conan import ConanFile
 
 
 class ChallengeProjectConan(ConanFile):
@@ -15,9 +16,12 @@ class ChallengeProjectConan(ConanFile):
         "gtest/*:shared": True,
     }
 
+    def configure(self):
+        self.options["boost"].without_cobalt = True
+
     def requirements(self):
-        self.requires("boost/1.86.0")
-        self.requires("gtest/1.14.0")
+        self.requires("boost/1.90.0")
+        self.requires("gtest/1.17.0")
 
     def layout(self):
         cmake_layout(self)
