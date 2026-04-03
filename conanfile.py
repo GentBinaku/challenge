@@ -1,5 +1,8 @@
+import os
+
 from conan.tools.build import check_min_cppstd
 from conan.tools.cmake import CMakeDeps, CMakeToolchain, cmake_layout
+from conan.tools.files import copy
 
 from conan import ConanFile
 
@@ -10,14 +13,10 @@ class ChallengeProjectConan(ConanFile):
 
     settings = "os", "compiler", "build_type", "arch"
 
-    # Keep third-party dependencies shared as required by the challenge.
-    default_options = {
-        "boost/*:shared": True,
-        "gtest/*:shared": True,
-    }
-
     def configure(self):
         self.options["boost"].without_cobalt = True
+        self.options["boost"].shared = True
+        self.options["gtest"].shared = True
 
     def requirements(self):
         self.requires("boost/1.90.0")
@@ -36,7 +35,7 @@ class ChallengeProjectConan(ConanFile):
         deps = CMakeDeps(self)
         deps.generate()
 
-    def validate(self):
-        cppstd = self.settings.get_safe("compiler.cppstd")
-        if cppstd:
-            check_min_cppstd(self, 20)
+        bin_dir = os.path.join(self.build_folder, "bin")
+        for dep in self.dependencies.values():
+            for libdir in dep.cpp_info.libdirs:
+                copy(self, "*.so*", libdir, bin_dir)
