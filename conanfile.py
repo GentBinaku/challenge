@@ -37,8 +37,11 @@ class ChallengeProjectConan(ConanFile):
         lib_dir = os.path.join(self.build_folder, "lib")
         bin_dir = os.path.join(self.build_folder, "bin")
         for dep in self.dependencies.values():
-            for libdir in dep.cpp_info.libdirs:
-                copy(self, "*.so*", libdir, lib_dir)
-                copy(self, "*.lib", libdir, lib_dir)
-            for bindir in dep.cpp_info.bindirs:
-                copy(self, "*.dll", bindir, bin_dir)
+            if self.settings.os == "Windows":
+                for libdir in dep.cpp_info.libdirs:
+                    copy(self, "*.lib", libdir, lib_dir)
+                for bindir in dep.cpp_info.bindirs:
+                    copy(self, "*.dll", bindir, bin_dir)
+            else:
+                for libdir in dep.cpp_info.libdirs:
+                    copy(self, "*.so*", libdir, lib_dir)

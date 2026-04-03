@@ -29,3 +29,8 @@ else()
             Boost::stacktrace_from_exception libbacktrace::libbacktrace dl)
   target_link_options(plugin_segfault PRIVATE -rdynamic)
 endif()
+
+install(TARGETS plugin_segfault
+        RUNTIME DESTINATION bin
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib)

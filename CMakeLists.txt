@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.21)
 
 # Disable modules support, this is broken with clang-tidy at the moment
 if(POLICY CMP0155)
-	cmake_policy(SET CMP0155 OLD)
+  cmake_policy(SET CMP0155 OLD)
 endif()
 
 project(challenge_project LANGUAGES CXX)
@@ -17,5 +17,20 @@ add_subdirectory(app)
 
 include(CTest)
 if(BUILD_TESTING)
-	add_subdirectory(tests)
+  add_subdirectory(tests)
+endif()
+
+# Install third-party shared libraries copied by conanfile.py
+if(WIN32)
+  install(
+    DIRECTORY "${CMAKE_BINARY_DIR}/bin/"
+    DESTINATION bin
+    FILES_MATCHING
+    PATTERN "*.dll")
+else()
+  install(
+    DIRECTORY "${CMAKE_BINARY_DIR}/lib/"
+    DESTINATION lib
+    FILES_MATCHING
+    PATTERN "*.so*")
 endif()

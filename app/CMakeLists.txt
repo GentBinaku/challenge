@@ -9,4 +9,7 @@ set_target_properties(challenge PROPERTIES
 target_include_directories(challenge
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/plugin/include
+		${PROJECT_SOURCE_DIR}/plugin_segfault/include
 )
+
+install(TARGETS challenge RUNTIME DESTINATION bin)

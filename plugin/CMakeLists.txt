@@ -12,3 +12,8 @@ endif()
 
 find_package(Boost REQUIRED COMPONENTS log log_setup)
 target_link_libraries(plugin PRIVATE Boost::log Boost::log_setup)
+
+install(TARGETS plugin
+        RUNTIME DESTINATION bin
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib)
