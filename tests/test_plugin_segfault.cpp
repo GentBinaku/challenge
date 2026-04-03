@@ -5,17 +5,17 @@
 #include <string>
 
 #ifdef _WIN32
-    #include <windows.h>
+#include <windows.h>
 #else
-    #include <dlfcn.h>
-    #include <sys/wait.h>
-    #include <unistd.h>
+#include <dlfcn.h>
+#include <sys/wait.h>
+#include <unistd.h>
 #endif
 
 namespace {
 
-using plugin_init_fn    = int (*)();
-using plugin_get_name_fn = const char* (*)();
+using plugin_init_fn = int (*)();
+using plugin_get_name_fn = const char *(*)();
 
 class PluginLoader {
 public:
@@ -36,7 +36,7 @@ public:
 #endif
     }
 
-    PluginLoader(const PluginLoader&)            = delete;
+    PluginLoader(const PluginLoader&) = delete;
     PluginLoader& operator=(const PluginLoader&) = delete;
 
     template <typename T>
@@ -56,34 +56,17 @@ private:
 };
 
 std::string get_plugin_path() {
-    const char* env = std::getenv("PLUGIN_PATH");
+    const char* env = std::getenv("PLUGIN_SEGFAULT_PATH");
     if (env) return env;
 
     auto exe_dir = std::filesystem::path(".");
 #ifdef _WIN32
-    return (exe_dir / "plugin.dll").string();
+    return (exe_dir / "plugin_segfault.dll").string();
 #elif defined(__APPLE__)
-    return (exe_dir / "libplugin.dylib").string();
+    return (exe_dir / "libplugin_segfault.dylib").string();
 #else
-    return (exe_dir / "libplugin.so").string();
+    return (exe_dir / "libplugin_segfault.so").string();
 #endif
-}
-
-// Returns all crash_*.txt files found in dir written after snapshot was taken.
-std::vector<std::filesystem::path> find_new_crash_files(
-    const std::filesystem::path& dir,
-    const std::filesystem::file_time_type& since)
-{
-    std::vector<std::filesystem::path> found;
-    for (const auto& entry : std::filesystem::directory_iterator(dir)) {
-        const auto name = entry.path().filename().string();
-        if (name.starts_with("crash_") && name.ends_with(".txt") &&
-            entry.last_write_time() >= since)
-        {
-            found.push_back(entry.path());
-        }
-    }
-    return found;
 }
 
 class PluginSegfaultTest : public ::testing::Test {
@@ -91,30 +74,22 @@ protected:
     void SetUp() override {
         loader_ = std::make_unique<PluginLoader>(get_plugin_path());
         ASSERT_TRUE(loader_->is_loaded())
-            << "Plugin library not found. Set PLUGIN_PATH or run from build/bin.";
+            << "Plugin library not found. Set PLUGIN_SEGFAULT_PATH or run from build/bin.";
     }
 
-    void TearDown() override {
-        loader_.reset();
-        // Clean up any crash files generated during the test.
-        for (const auto& entry : std::filesystem::directory_iterator(".")) {
-            const auto name = entry.path().filename().string();
-            if (name.starts_with("crash_") && name.ends_with(".txt"))
-                std::filesystem::remove(entry.path());
-        }
-    }
+    void TearDown() override { loader_.reset(); }
 
     std::unique_ptr<PluginLoader> loader_;
 };
 
 TEST_F(PluginSegfaultTest, InitReturnsZero) {
-    auto fn = loader_->get_symbol<plugin_init_fn>("plugin_init");
+    auto fn = loader_->get_symbol<plugin_init_fn>("plugin_segfault_init");
     ASSERT_NE(fn, nullptr);
     EXPECT_EQ(fn(), 0);
 }
 
 TEST_F(PluginSegfaultTest, GetNameReturnsExpected) {
-    auto fn = loader_->get_symbol<plugin_get_name_fn>("plugin_get_name");
+    auto fn = loader_->get_symbol<plugin_get_name_fn>("plugin_segfault_get_name");
     ASSERT_NE(fn, nullptr);
     EXPECT_STREQ(fn(), "segfault_plugin");
 }
@@ -123,38 +98,61 @@ TEST_F(PluginSegfaultTest, GetNameReturnsExpected) {
 TEST_F(PluginSegfaultTest, CrashFileWrittenOnSegfault) {
     namespace fs = std::filesystem;
 
-    const auto work_dir = fs::current_path();
-    const auto snapshot = fs::file_time_type::clock::now();
+    // Use a temp directory so we don't pollute cwd
+    auto work_dir = fs::temp_directory_path() / "segfault_test";
+    fs::create_directories(work_dir);
 
     pid_t pid = fork();
     ASSERT_NE(pid, -1) << "fork() failed";
 
     if (pid == 0) {
-        // Child: install handler then trigger SIGSEGV.
-        auto init_fn = loader_->get_symbol<plugin_init_fn>("plugin_init");
+        // Child: chdir to work_dir, init plugin (installs handler), then crash
+        if (chdir(work_dir.c_str()) != 0) _exit(99);
+
+        auto init_fn = loader_->get_symbol<plugin_init_fn>("plugin_segfault_init");
         if (init_fn) init_fn();
 
+        // Trigger SIGSEGV
         volatile int* p = nullptr;
-        *p = 42; // SIGSEGV
+        *p = 42;
         _exit(1);
     }
 
+    // Parent: wait for child
     int status = 0;
     waitpid(pid, &status, 0);
 
-    // Give the handler a moment to flush the file.
-    usleep(100'000);
+    // Child should have been killed by SIGSEGV
+    EXPECT_TRUE(WIFSIGNALED(status));
+    EXPECT_EQ(WTERMSIG(status), SIGSEGV);
 
-    const auto crash_files = find_new_crash_files(work_dir, snapshot);
-    ASSERT_FALSE(crash_files.empty()) << "No crash_*.txt file written after SEGFAULT";
+    // Check crash file was written
+    bool found_crash_file = false;
+    std::string crash_content;
 
-    const auto& crash_file = crash_files.front();
-    std::ifstream f(crash_file);
-    const std::string content((std::istreambuf_iterator<char>(f)), {});
+    for (const auto& entry : fs::directory_iterator(work_dir)) {
+        const auto name = entry.path().filename().string();
+        if (name.starts_with("crash_") && name.ends_with(".txt")) {
+            found_crash_file = true;
+            std::ifstream f(entry.path());
+            crash_content.assign(std::istreambuf_iterator<char>(f), {});
+            break;
+        }
+    }
 
-    EXPECT_FALSE(content.empty()) << "Crash file is empty: " << crash_file;
-    EXPECT_NE(content.find("SIGSEGV"), std::string::npos)
-        << "Crash file missing SIGSEGV marker:\n" << content;
+    EXPECT_TRUE(found_crash_file) << "No crash_*.txt file written in " << work_dir;
+
+    if (found_crash_file) {
+        EXPECT_FALSE(crash_content.empty()) << "Crash file is empty";
+        // Verify it contains signal info and stacktrace content
+        EXPECT_NE(crash_content.find("Signal"), std::string::npos)
+            << "Crash file missing 'Signal' marker:\n" << crash_content;
+        EXPECT_NE(crash_content.find("Stacktrace"), std::string::npos)
+            << "Crash file missing 'Stacktrace' marker:\n" << crash_content;
+    }
+
+    // Cleanup
+    fs::remove_all(work_dir);
 }
 #endif
 

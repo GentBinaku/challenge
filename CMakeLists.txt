@@ -12,6 +12,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_subdirectory(plugin)
+add_subdirectory(plugin_segfault)
 add_subdirectory(app)
 
 include(CTest)
