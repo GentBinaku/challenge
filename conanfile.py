@@ -1,6 +1,5 @@
 import os
 
-from conan.tools.build import check_min_cppstd
 from conan.tools.cmake import CMakeDeps, CMakeToolchain, cmake_layout
 from conan.tools.files import copy
 
@@ -36,7 +35,10 @@ class ChallengeProjectConan(ConanFile):
         deps.generate()
 
         lib_dir = os.path.join(self.build_folder, "lib")
+        bin_dir = os.path.join(self.build_folder, "bin")
         for dep in self.dependencies.values():
             for libdir in dep.cpp_info.libdirs:
                 copy(self, "*.so*", libdir, lib_dir)
-                copy(self, "*.dll", libdir, os.path.join(self.build_folder, "bin"))
+                copy(self, "*.lib", libdir, lib_dir)
+            for bindir in dep.cpp_info.bindirs:
+                copy(self, "*.dll", bindir, bin_dir)
