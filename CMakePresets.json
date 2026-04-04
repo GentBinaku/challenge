@@ -11,7 +11,8 @@
       "cacheVariables": {
         "CMAKE_POLICY_DEFAULT_CMP0091": "NEW",
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/install"
       }
     },
     {

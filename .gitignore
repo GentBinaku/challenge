@@ -44,3 +44,6 @@ compile_commands.json
 .python-version
 .pyenv/
 
+
+#install folder
+install/*

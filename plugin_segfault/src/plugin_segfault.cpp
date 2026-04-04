@@ -8,6 +8,7 @@
 #include <unistd.h>
 #endif
 
+#include <boost/log/attributes/constant.hpp>
 #include <boost/log/trivial.hpp>
 #include <boost/log/utility/setup/common_attributes.hpp>
 #include <boost/log/utility/setup/console.hpp>
@@ -22,7 +23,14 @@ struct LogInitializer
   LogInitializer()
   {
     boost::log::add_common_attributes();
-    boost::log::add_console_log();
+    // Guard against double sink registration: Boost.Log core is a process-wide
+    // singleton (shared DLL), so each loaded plugin DLL would otherwise add its
+    // own console sink.  Use a global attribute as a cross-DLL flag.
+    auto core = boost::log::core::get();
+    if (core->get_global_attributes().find("log_sink_added") == core->get_global_attributes().end()) {
+      boost::log::add_console_log();
+      core->add_global_attribute("log_sink_added", boost::log::attributes::constant<int>(1));
+    }
   }
 };
 
@@ -92,7 +100,7 @@ extern "C" {
 PLUGIN_API int plugin_segfault_init(void) {
   ensure_log_initialized();
   setup_crash_handlers();
-  BOOST_LOG_TRIVIAL(info) << "Segfault plugin loaded — handler installed";
+  BOOST_LOG_TRIVIAL(info) << "Segfault plugin loaded -- handler installed";
   return 0;
 }
 
