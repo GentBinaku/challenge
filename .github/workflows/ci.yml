@@ -1,0 +1,216 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+    tags: ["v*.*.*"]
+  pull_request:
+    branches: ["main"]
+
+env:
+  PYTHON_VERSION: "3.11"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Reusable build matrix entries
+# ─────────────────────────────────────────────────────────────────────────────
+jobs:
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 1 — Build & Test
+  # ───────────────────────────────────────────────────────────────────────────
+  build-and-test:
+    name: Build & Test / ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-gcc
+            os: ubuntu-latest
+            conan_profile: conan/profiles/linux/gcc
+            cmake_preset: conan-linux-release
+            build_preset: build-conan-linux-release
+            test_preset: test-conan-linux-release
+
+          - name: linux-clang
+            os: ubuntu-latest
+            conan_profile: conan/profiles/linux/clang
+            cmake_preset: conan-linux-release
+            build_preset: build-conan-linux-release
+            test_preset: test-conan-linux-release
+
+          - name: windows-msvc
+            os: windows-latest
+            conan_profile: conan/profiles/windows/msvc
+            cmake_preset: conan-windows-release
+            build_preset: build-conan-windows-release
+            test_preset: test-conan-windows-release
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Conan
+        run: pip install "conan>=2,<3"
+
+      - name: Install Ninja (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y ninja-build
+
+      - name: Install GCC 13 (linux-gcc)
+        if: matrix.name == 'linux-gcc'
+        run: sudo apt-get install -y gcc-13 g++-13
+
+      - name: Install Clang 18 (linux-clang)
+        if: matrix.name == 'linux-clang'
+        run: sudo apt-get install -y clang-18
+
+      - name: Cache Conan packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.conan2/p
+          key: conan-${{ matrix.name }}-${{ hashFiles('conanfile.py') }}
+          restore-keys: conan-${{ matrix.name }}-
+
+      - name: Conan profile detect
+        run: conan profile detect --force
+
+      - name: Conan install
+        run: >
+          conan install . --build=missing
+          -s build_type=Release
+          --profile:host=${{ github.workspace }}/${{ matrix.conan_profile }}
+          --profile:build=${{ github.workspace }}/${{ matrix.conan_profile }}
+
+      - name: CMake configure
+        run: cmake --preset ${{ matrix.cmake_preset }}
+
+      - name: CMake build
+        run: cmake --build --preset ${{ matrix.build_preset }}
+
+      - name: CTest
+        run: ctest --preset ${{ matrix.test_preset }}
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 2 — Install & Package
+  # ───────────────────────────────────────────────────────────────────────────
+  install-and-package:
+    name: Install & Package / ${{ matrix.name }}
+    needs: build-and-test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-gcc
+            os: ubuntu-latest
+            conan_profile: conan/profiles/linux/gcc
+            cmake_preset: conan-linux-release
+            build_preset: build-conan-linux-release
+            archive_ext: tar.gz
+
+          - name: linux-clang
+            os: ubuntu-latest
+            conan_profile: conan/profiles/linux/clang
+            cmake_preset: conan-linux-release
+            build_preset: build-conan-linux-release
+            archive_ext: tar.gz
+
+          - name: windows-msvc
+            os: windows-latest
+            conan_profile: conan/profiles/windows/msvc
+            cmake_preset: conan-windows-release
+            build_preset: build-conan-windows-release
+            archive_ext: zip
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Conan
+        run: pip install "conan>=2,<3"
+
+      - name: Install Ninja (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y ninja-build
+
+      - name: Install GCC 13 (linux-gcc)
+        if: matrix.name == 'linux-gcc'
+        run: sudo apt-get install -y gcc-13 g++-13
+
+      - name: Install Clang 18 (linux-clang)
+        if: matrix.name == 'linux-clang'
+        run: sudo apt-get install -y clang-18
+
+      - name: Cache Conan packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.conan2/p
+          key: conan-${{ matrix.name }}-${{ hashFiles('conanfile.py') }}
+          restore-keys: conan-${{ matrix.name }}-
+
+      - name: Conan profile detect
+        run: conan profile detect --force
+
+      - name: Conan install
+        run: >
+          conan install . --build=missing
+          -s build_type=Release
+          --profile:host=${{ github.workspace }}/${{ matrix.conan_profile }}
+          --profile:build=${{ github.workspace }}/${{ matrix.conan_profile }}
+
+      - name: CMake configure
+        run: cmake --preset ${{ matrix.cmake_preset }}
+
+      - name: CMake build
+        run: cmake --build --preset ${{ matrix.build_preset }}
+
+      - name: CMake install
+        run: cmake --build --preset ${{ matrix.build_preset }} --target install
+
+      - name: Package (Linux)
+        if: runner.os == 'Linux'
+        run: tar -czf challenge-${{ matrix.name }}.tar.gz -C install .
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path install\* -DestinationPath challenge-${{ matrix.name }}.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: challenge-${{ matrix.name }}
+          path: challenge-${{ matrix.name }}.${{ matrix.archive_ext }}
+          retention-days: 7
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Job 4 — GitHub Release  (only on v*.*.* tags)
+  # ───────────────────────────────────────────────────────────────────────────
+  release:
+    name: GitHub Release
+    needs: [build-and-test, install-and-package]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true
