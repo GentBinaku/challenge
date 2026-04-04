@@ -8,7 +8,6 @@
       "name": "conan-common",
       "description": "Common settings for Conan-based builds",
       "hidden": true,
-      "generator": "Ninja",
       "cacheVariables": {
         "CMAKE_POLICY_DEFAULT_CMP0091": "NEW",
         "CMAKE_BUILD_TYPE": "Release",
@@ -16,10 +15,11 @@
       }
     },
     {
-      "name": "conan-release",
-      "displayName": "Conan Release",
-      "description": "Build with Conan-managed dependencies (Release mode)",
+      "name": "conan-windows-release",
+      "displayName": "Conan Release (Windows)",
+      "description": "Build with Conan-managed dependencies (Release mode) - Windows",
       "inherits": "conan-common",
+      "generator": "Visual Studio 17 2022",
       "binaryDir": "${sourceDir}/build/Release",
       "toolchainFile": "${sourceDir}/build/Release/conan_toolchain.cmake",
       "cacheVariables": {
@@ -27,10 +27,35 @@
       }
     },
     {
-      "name": "conan-debug",
-      "displayName": "Conan Debug",
-      "description": "Build with Conan-managed dependencies (Debug mode)",
+      "name": "conan-windows-debug",
+      "displayName": "Conan Debug (Windows)",
+      "description": "Build with Conan-managed dependencies (Debug mode) - Windows",
       "inherits": "conan-common",
+      "generator": "Visual Studio 17 2022",
+      "binaryDir": "${sourceDir}/build/Debug",
+      "toolchainFile": "${sourceDir}/build/Debug/conan_toolchain.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "conan-linux-release",
+      "displayName": "Conan Release (Linux)",
+      "description": "Build with Conan-managed dependencies (Release mode) - Linux",
+      "inherits": "conan-common",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/Release",
+      "toolchainFile": "${sourceDir}/build/Release/conan_toolchain.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "conan-linux-debug",
+      "displayName": "Conan Debug (Linux)",
+      "description": "Build with Conan-managed dependencies (Debug mode) - Linux",
+      "inherits": "conan-common",
+      "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/Debug",
       "toolchainFile": "${sourceDir}/build/Debug/conan_toolchain.cmake",
       "cacheVariables": {
@@ -40,23 +65,38 @@
   ],
   "buildPresets": [
     {
-      "name": "build-conan-release",
-      "configurePreset": "conan-release",
-      "description": "Build in Release mode",
+      "name": "build-conan-windows-release",
+      "configurePreset": "conan-windows-release",
+      "description": "Build in Release mode (Windows)",
+      "configuration": "Release",
       "jobs": 0
     },
     {
-      "name": "build-conan-debug",
-      "configurePreset": "conan-debug",
-      "description": "Build in Debug mode",
+      "name": "build-conan-windows-debug",
+      "configurePreset": "conan-windows-debug",
+      "description": "Build in Debug mode (Windows)",
+      "configuration": "Debug",
+      "jobs": 0
+    },
+    {
+      "name": "build-conan-linux-release",
+      "configurePreset": "conan-linux-release",
+      "description": "Build in Release mode (Linux)",
+      "jobs": 0
+    },
+    {
+      "name": "build-conan-linux-debug",
+      "configurePreset": "conan-linux-debug",
+      "description": "Build in Debug mode (Linux)",
       "jobs": 0
     }
   ],
   "testPresets": [
     {
-      "name": "test-conan-release",
-      "configurePreset": "conan-release",
-      "description": "Run tests (Release mode)",
+      "name": "test-conan-windows-release",
+      "configurePreset": "conan-windows-release",
+      "description": "Run tests (Release mode - Windows)",
+      "configuration": "Release",
       "output": {
         "outputOnFailure": true
       },
@@ -66,9 +106,34 @@
       }
     },
     {
-      "name": "test-conan-debug",
-      "configurePreset": "conan-debug",
-      "description": "Run tests (Debug mode)",
+      "name": "test-conan-windows-debug",
+      "configurePreset": "conan-windows-debug",
+      "description": "Run tests (Debug mode - Windows)",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      }
+    },
+    {
+      "name": "test-conan-linux-release",
+      "configurePreset": "conan-linux-release",
+      "description": "Run tests (Release mode - Linux)",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      }
+    },
+    {
+      "name": "test-conan-linux-debug",
+      "configurePreset": "conan-linux-debug",
+      "description": "Run tests (Debug mode - Linux)",
       "output": {
         "outputOnFailure": true
       },

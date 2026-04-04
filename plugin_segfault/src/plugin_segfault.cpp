@@ -47,7 +47,7 @@ void write_stacktrace_to_file(int signum)
 LONG WINAPI win_crash_handler(EXCEPTION_POINTERS *info)
 {
   std::cerr << "Exception code: 0x" << std::hex << info->ExceptionRecord->ExceptionCode << std::dec << "\n";
-  write_stacktrace_to_file(info->ExceptionRecord-- > ExceptionCode);
+  write_stacktrace_to_file(info->ExceptionRecord->ExceptionCode);
   return EXCEPTION_CONTINUE_SEARCH;
 }
 
