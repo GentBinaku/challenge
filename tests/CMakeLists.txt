@@ -8,8 +8,7 @@ set_target_properties(
 target_include_directories(
   plugin_segfault_tests PRIVATE ${PROJECT_SOURCE_DIR}/plugin_segfault/include)
 
-target_link_libraries(plugin_segfault_tests PRIVATE GTest::gtest
-                                                    GTest::gtest_main)
+target_link_libraries(plugin_segfault_tests PRIVATE GTest::gtest)
 
 if(UNIX AND NOT APPLE)
     target_link_libraries(plugin_segfault_tests PRIVATE dl)
