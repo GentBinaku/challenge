@@ -36,3 +36,11 @@ ehthumbs.db
 Thumbs.db
 
 compile_commands.json
+
+#python venv
+.venv/*
+
+# pyenv
+.python-version
+.pyenv/
+
