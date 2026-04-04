@@ -30,6 +30,9 @@ if(NOT WIN32)
   set(CMAKE_INSTALL_RPATH "$ORIGIN;$ORIGIN/../lib")
   set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
   set(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE)
+  # Use DT_RPATH instead of DT_RUNPATH so the search path propagates to
+  # transitive dependencies (e.g. libboost_log -> libboost_filesystem).
+  add_link_options(-Wl,--disable-new-dtags)
 endif()
 
 add_subdirectory(plugin)
