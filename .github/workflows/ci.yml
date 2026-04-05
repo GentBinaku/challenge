@@ -80,3 +80,38 @@ jobs:
 
       - name: CTest
         run: ctest --preset conan-release
+  # ───────────────────────────────────────────────────────────────────────────
+  # Stage 2 — Lint
+  # ───────────────────────────────────────────────────────────────────────────
+  lint:
+      name: Lint / pre-commit
+      runs-on: ubuntu-latest
+
+      steps:
+        - uses: actions/checkout@v4
+          with:
+            fetch-depth: 0
+
+        - name: Set up Python
+          uses: actions/setup-python@v5
+          with:
+            python-version: ${{ env.PYTHON_VERSION }}
+
+        - name: Install Ninja and clang-tidy, clang-format, GCC 13 (Linux)
+          run: sudo apt-get install -y ninja-build clang-tidy clang-format gcc-13 g++-13
+
+        - name: Install Conan and pre-commit
+          run: pip install "conan>=2,<3" pre-commit
+
+        - name: Configure Conan profile
+          run: conan profile detect --force
+          shell: bash
+
+        - name: Conan install
+          run: conan install . --build=missing -s build_type=Release
+
+        - name: CMake configure
+          run: cmake --preset conan-release
+
+        - name: Run pre-commit
+          run: pre-commit run --from-ref origin/main --to-ref HEAD
