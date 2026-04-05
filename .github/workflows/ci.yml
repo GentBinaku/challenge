@@ -115,3 +115,107 @@ jobs:
 
         - name: Run pre-commit
           run: pre-commit run --all-files
+  # ───────────────────────────────────────────────────────────────────────────
+  # Stage 3 — Install & Package
+  # ───────────────────────────────────────────────────────────────────────────
+  install-and-package:
+    name: Install & Package / ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    needs: build-and-test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-gcc
+            os: ubuntu-latest
+            archive_name: challenge-linux-gcc.tar.gz
+            archive_cmd: tar -czf challenge-linux-gcc.tar.gz -C install .
+
+          - name: linux-clang
+            os: ubuntu-latest
+            archive_name: challenge-linux-clang.tar.gz
+            archive_cmd: tar -czf challenge-linux-clang.tar.gz -C install .
+
+          - name: windows-msvc
+            os: windows-latest
+            archive_name: challenge-windows-msvc.zip
+            archive_cmd: Compress-Archive -Path install\* -DestinationPath challenge-windows-msvc.zip
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Conan
+        run: pip install "conan>=2,<3"
+
+      - name: Install Ninja (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y ninja-build
+
+      - name: Install GCC 13 (linux-gcc)
+        if: matrix.name == 'linux-gcc'
+        run: sudo apt-get install -y gcc-13 g++-13
+
+      - name: Install Clang 18 (linux-clang)
+        if: matrix.name == 'linux-clang'
+        run: sudo apt-get install -y clang-18
+
+      - name: Configure Conan profile
+        run: conan profile detect --force
+        shell: bash
+
+      - name: Conan install
+        run: conan install . --build=missing -s build_type=Release -s compiler.cppstd=20
+
+      - name: CMake configure
+        run: cmake --preset conan-release
+
+      - name: CMake build
+        run: cmake --build --preset conan-release
+
+      - name: CMake install
+        run: cmake --build --preset conan-release --target install
+
+      - name: Archive (Linux)
+        if: runner.os == 'Linux'
+        run: ${{ matrix.archive_cmd }}
+
+      - name: Archive (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ${{ matrix.archive_cmd }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.archive_name }}
+          path: ${{ matrix.archive_name }}
+  # ───────────────────────────────────────────────────────────────────────────
+  # Stage 4 — Release
+  # ───────────────────────────────────────────────────────────────────────────
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    needs: install-and-package
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/challenge-linux-gcc.tar.gz/challenge-linux-gcc.tar.gz
+            artifacts/challenge-linux-clang.tar.gz/challenge-linux-clang.tar.gz
+            artifacts/challenge-windows-msvc.zip/challenge-windows-msvc.zip
