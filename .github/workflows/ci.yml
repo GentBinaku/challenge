@@ -64,18 +64,20 @@ jobs:
         if: matrix.name == 'linux-clang'
         run: sudo apt-get install -y clang-18
 
+      - name: Configure Conan profile
+        run: |
+          conan profile detect --force
+          cp ${{ github.workspace }}/${{ matrix.conan_profile }} ~/.conan2/profiles/default
+        shell: bash
+
       - name: Conan install
-        run: >
-          conan install . --build=missing
-          -s build_type=Release
-          --profile:host=${{ github.workspace }}/${{ matrix.conan_profile }}
-          --profile:build=${{ github.workspace }}/${{ matrix.conan_profile }}
+        run: conan install . --build=missing -s build_type=Release
 
       - name: CMake configure
-        run: cmake --preset ${{ matrix.cmake_preset }}
+        run: cmake --preset conan-release
 
       - name: CMake build
-        run: cmake --build --preset ${{ matrix.build_preset }}
+        run: cmake --build --preset conan-release
 
       - name: CTest
-        run: ctest --preset ${{ matrix.test_preset }}
+        run: ctest --preset conan-release

@@ -23,7 +23,10 @@ class ChallengeProjectConan(ConanFile):
 
     def layout(self):
         cmake_layout(self)
-        self.folders.generators = self.folders.build
+        build_type = str(self.settings.build_type)
+        self.folders.source = "."
+        self.folders.build = os.path.join("build", build_type)
+        self.folders.generators = os.path.join("build", build_type)
 
     def generate(self):
         tc = CMakeToolchain(self)
