@@ -11,6 +11,15 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+option(ENABLE_SANITIZERS "Enable AddressSanitizer (GCC/Clang only)" OFF)
+if(ENABLE_SANITIZERS)
+  if(MSVC)
+    message(FATAL_ERROR "ENABLE_SANITIZERS is not supported on MSVC")
+  endif()
+  add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+  add_link_options(-fsanitize=address)
+endif()
+
 # MSVC multi-config generators append the config name (e.g. Debug/Release) to
 # RUNTIME_OUTPUT_DIRECTORY unless the per-config variants are set explicitly.
 # Keep all outputs flat so the Conan-copied DLLs and the built DLLs share one

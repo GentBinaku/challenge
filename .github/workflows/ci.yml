@@ -81,6 +81,63 @@ jobs:
       - name: CTest
         run: ctest --preset conan-release
   # ───────────────────────────────────────────────────────────────────────────
+  # Stage 1b — Sanitizers (ASan)
+  # ───────────────────────────────────────────────────────────────────────────
+  sanitizers:
+    name: ASan / ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-gcc
+            cc: gcc-13
+            cxx: g++-13
+            packages: gcc-13 g++-13
+
+          - name: linux-clang
+            cc: clang-18
+            cxx: clang++-18
+            packages: clang-18
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Conan
+        run: pip install "conan>=2,<3"
+
+      - name: Install Ninja and compiler
+        run: sudo apt-get install -y ninja-build ${{ matrix.packages }}
+
+      - name: Configure Conan profile
+        run: conan profile detect --force
+        shell: bash
+
+      - name: Conan install (Debug)
+        run: conan install . --build=missing -s build_type=Debug -s compiler.cppstd=20
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+
+      - name: CMake configure (ASan)
+        run: cmake --preset conan-debug
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+
+      - name: CMake build (ASan)
+        run: cmake --build --preset conan-debug
+
+      - name: CTest (ASan)
+        run: ctest --preset conan-debug
+        env:
+          ASAN_OPTIONS: verify_asan_link_order=0
+  # ───────────────────────────────────────────────────────────────────────────
   # Stage 2 — Lint
   # ───────────────────────────────────────────────────────────────────────────
   lint:

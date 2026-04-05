@@ -34,7 +34,8 @@
       "binaryDir": "${sourceDir}/build/Debug",
       "toolchainFile": "${sourceDir}/build/Debug/conan_toolchain.cmake",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ENABLE_SANITIZERS": "ON"
       }
     }
   ],
