@@ -1,6 +1,6 @@
 import os
 
-from conan.tools.cmake import CMakeDeps, CMakeToolchain, cmake_layout
+from conan.tools.cmake import CMake, CMakeDeps, CMakeToolchain, cmake_layout
 from conan.tools.files import copy
 
 from conan import ConanFile
@@ -11,6 +11,14 @@ class ChallengeProjectConan(ConanFile):
     version = "0.1.0"
 
     settings = "os", "compiler", "build_type", "arch"
+    exports_sources = (
+        "CMakeLists.txt",
+        "CMakePresets.json",
+        "app/*",
+        "plugin/*",
+        "plugin_segfault/*",
+        "tests/*",
+    )
 
     def configure(self):
         self.options["boost"].without_cobalt = True
@@ -48,3 +56,38 @@ class ChallengeProjectConan(ConanFile):
             else:
                 for libdir in dep.cpp_info.libdirs:
                     copy(self, "*.so*", libdir, lib_dir)
+
+    def build(self):
+        cmake = CMake(self)
+        cmake.configure()
+        cmake.build()
+
+    def package(self):
+        # Headers
+        copy(self, "*.h", os.path.join(self.source_folder, "plugin", "include"),
+             os.path.join(self.package_folder, "include"))
+        copy(self, "*.h", os.path.join(self.source_folder, "plugin_segfault", "include"),
+             os.path.join(self.package_folder, "include"))
+
+        # Shared libraries
+        if self.settings.os == "Windows":
+            copy(self, "*.dll", os.path.join(self.build_folder, "bin"),
+                 os.path.join(self.package_folder, "bin"))
+            copy(self, "*.lib", os.path.join(self.build_folder, "lib"),
+                 os.path.join(self.package_folder, "lib"))
+        else:
+            copy(self, "*.so*", os.path.join(self.build_folder, "lib"),
+                 os.path.join(self.package_folder, "lib"))
+            copy(self, "*.so*", os.path.join(self.build_folder, "bin"),
+                 os.path.join(self.package_folder, "lib"))
+
+    def package_info(self):
+        self.cpp_info.components["plugin"].libs = ["plugin"]
+        self.cpp_info.components["plugin"].includedirs = ["include"]
+        if self.settings.os == "Windows":
+            self.cpp_info.components["plugin"].bindirs = ["bin"]
+
+        self.cpp_info.components["plugin_segfault"].libs = ["plugin_segfault"]
+        self.cpp_info.components["plugin_segfault"].includedirs = ["include"]
+        if self.settings.os == "Windows":
+            self.cpp_info.components["plugin_segfault"].bindirs = ["bin"]

@@ -252,12 +252,50 @@ jobs:
           name: ${{ matrix.archive_name }}
           path: ${{ matrix.archive_name }}
   # ───────────────────────────────────────────────────────────────────────────
+  # Stage 3b — Conan Package (Task 8)
+  # ───────────────────────────────────────────────────────────────────────────
+  conan-package:
+    name: Conan Package
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Conan
+        run: pip install "conan>=2,<3"
+
+      - name: Install Ninja and GCC 13
+        run: sudo apt-get install -y ninja-build gcc-13 g++-13
+
+      - name: Configure Conan profile
+        run: conan profile detect --force
+        shell: bash
+
+      - name: conan create
+        run: conan create . --build=missing -s build_type=Release -s compiler.cppstd=20
+
+      - name: Export Conan cache
+        run: conan cache save "challenge_project/0.1.0:*" --file challenge-conan-package.tar.gz
+
+      - name: Upload Conan package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: challenge-conan-package.tar.gz
+          path: challenge-conan-package.tar.gz
+
+  # ───────────────────────────────────────────────────────────────────────────
   # Stage 4 — Release
   # ───────────────────────────────────────────────────────────────────────────
   release:
     name: Release
     runs-on: ubuntu-latest
-    needs: install-and-package
+    needs: [install-and-package, conan-package]
     if: startsWith(github.ref, 'refs/tags/v')
 
     permissions:
@@ -276,3 +314,4 @@ jobs:
             artifacts/challenge-linux-gcc.tar.gz/challenge-linux-gcc.tar.gz
             artifacts/challenge-linux-clang.tar.gz/challenge-linux-clang.tar.gz
             artifacts/challenge-windows-msvc.zip/challenge-windows-msvc.zip
+            artifacts/challenge-conan-package.tar.gz/challenge-conan-package.tar.gz
