@@ -36,9 +36,9 @@ Checks: "*,
         -cppcoreguidelines-pro-type-member-init,
         -hicpp-member-init,
         -cert-err33-c,
-        -clang-diagnostic-error
-
-
+        -clang-diagnostic-error,
+        -cppcoreguidelines-pro-type-vararg,
+        -hicpp-vararg
 "
 WarningsAsErrors: ''
 HeaderFilterRegex: ''
