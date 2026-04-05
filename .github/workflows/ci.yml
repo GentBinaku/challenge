@@ -67,7 +67,6 @@ jobs:
       - name: Configure Conan profile
         run: |
           conan profile detect --force
-          cp ${{ github.workspace }}/${{ matrix.conan_profile }} ~/.conan2/profiles/default
         shell: bash
 
       - name: Conan install
