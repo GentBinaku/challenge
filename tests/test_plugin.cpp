@@ -1,4 +1,3 @@
-#include "plugin/plugin.h"
 #include <gtest/gtest.h>
 
 #include <cstdlib>

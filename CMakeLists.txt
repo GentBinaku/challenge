@@ -44,6 +44,14 @@ if(BUILD_TESTING)
   add_subdirectory(tests)
 endif()
 
+
+if(CMAKE_EXPORT_COMPILE_COMMANDS)
+    file(CREATE_LINK
+        "${CMAKE_BINARY_DIR}/compile_commands.json"
+        "${CMAKE_SOURCE_DIR}/compile_commands.json"
+        SYMBOLIC)
+endif()
+
 # Install third-party shared libraries copied by conanfile.py
 if(WIN32)
   install(

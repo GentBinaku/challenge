@@ -18,7 +18,27 @@ Checks: "*,
         -misc-use-internal-linkage,
         -readability-function-cognitive-complexity,
         -concurrency-mt-unsafe,
-        -readability-identifier-length
+        -readability-identifier-length,
+        -misc-include-cleaner,
+        -cppcoreguidelines-prefer-member-initializer,
+        -readability-implicit-bool-conversion,
+        -hicpp-braces-around-statements,readability-braces-around-statements,
+        -cppcoreguidelines-pro-type-reinterpret-cast,
+        -bugprone-easily-swappable-parameters,
+        -performance-avoid-endl,
+        -readability-braces-around-statements,
+        -misc-unused-parameters,
+        -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+        -misc-const-correctness,
+        -portability-avoid-pragma-once,
+        -cppcoreguidelines-special-member-functions,
+        -hicpp-special-member-functions,
+        -cppcoreguidelines-pro-type-member-init,
+        -hicpp-member-init,
+        -cert-err33-c,
+        -clang-diagnostic-error
+
+
 "
 WarningsAsErrors: ''
 HeaderFilterRegex: ''

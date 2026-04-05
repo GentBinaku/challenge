@@ -97,7 +97,8 @@ void setup_crash_handlers()
 
 extern "C" {
 
-PLUGIN_API int plugin_segfault_init(void) {
+PLUGIN_API int plugin_segfault_init(void)
+{
   ensure_log_initialized();
   setup_crash_handlers();
   BOOST_LOG_TRIVIAL(info) << "Segfault plugin loaded -- handler installed";

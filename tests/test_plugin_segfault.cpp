@@ -87,15 +87,7 @@ std::string get_plugin_path()
 {
   const char *env = std::getenv("PLUGIN_SEGFAULT_PATH");// NOLINT(misc-include-cleaner)
   if (env == nullptr) { return {}; }
-
-  auto exe_dir = std::filesystem::path(".");
-#ifdef _WIN32
-  return (exe_dir / "plugin_segfault.dll").string();
-#elif defined(__APPLE__)
-  return (exe_dir / "libplugin_segfault.dylib").string();
-#else
-  return (exe_dir / "libplugin_segfault.so").string();
-#endif
+  return { env };
 }
 
 class PluginSegfaultTest : public ::testing::Test
