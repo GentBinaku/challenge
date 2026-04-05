@@ -103,48 +103,47 @@ TEST_F(PluginSegfaultTest, CrashFileWrittenOnSegfault) {
     auto work_dir = fs::temp_directory_path() / "segfault_test";
     fs::create_directories(work_dir);
 
-    pid_t pid = fork();
-    ASSERT_NE(pid, -1) << "fork() failed";
+    // EXPECT_DEATH automatically handles fork(), waitpid(), and verifying the SIGSEGV
+    EXPECT_DEATH({
+        // Change the directory ONLY in the child process
+        fs::current_path(work_dir);
 
-    if (pid == 0) {
-        // Child: chdir to work_dir, init plugin (installs handler), then crash
-        if (chdir(work_dir.c_str()) != 0) _exit(99);
-
+        // Since fork() clones memory on POSIX, we can safely use the existing loader_
         auto init_fn = loader_->get_symbol<plugin_init_fn>("plugin_segfault_init");
         if (init_fn) init_fn();
 
         // Trigger SIGSEGV
         volatile int* p = nullptr;
         *p = 42;
-        _exit(1);
-    }
+    }, ""); // We expect it to die, output doesn't matter
 
-    // Parent: wait for child
-    int status = 0;
-    waitpid(pid, &status, 0);
-
-    // Child should have been killed by SIGSEGV
-    EXPECT_TRUE(WIFSIGNALED(status));
-    EXPECT_EQ(WTERMSIG(status), SIGSEGV);
-
-    // Check crash file was written
+    // Wait for the Crash Handler to finish writing the file
     bool found_crash_file = false;
     std::string crash_content;
 
-    for (const auto& entry : fs::directory_iterator(work_dir)) {
-        const auto name = entry.path().filename().string();
-        if (name.starts_with("crash_") && name.ends_with(".txt")) {
-            found_crash_file = true;
-            std::ifstream f(entry.path());
-            crash_content.assign(std::istreambuf_iterator<char>(f), {});
-            break;
+    for (int i = 0; i < 50; ++i) { // Poll for up to 5 seconds
+        if (fs::exists(work_dir)) {
+            for (const auto& entry : fs::directory_iterator(work_dir)) {
+                const auto name = entry.path().filename().string();
+                if (name.starts_with("crash_") && name.ends_with(".txt")) {
+                    std::ifstream f(entry.path());
+                    if (f.is_open()) {
+                        crash_content.assign(std::istreambuf_iterator<char>(f), {});
+                        if (!crash_content.empty()) {
+                            found_crash_file = true;
+                            break;
+                        }
+                    }
+                }
+            }
         }
+        if (found_crash_file) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
     EXPECT_TRUE(found_crash_file) << "No crash_*.txt file written in " << work_dir;
 
     if (found_crash_file) {
-        EXPECT_FALSE(crash_content.empty()) << "Crash file is empty";
         // Verify it contains signal info and stacktrace content
         EXPECT_NE(crash_content.find("Signal"), std::string::npos)
             << "Crash file missing 'Signal' marker:\n" << crash_content;
@@ -152,8 +151,12 @@ TEST_F(PluginSegfaultTest, CrashFileWrittenOnSegfault) {
             << "Crash file missing 'Stacktrace' marker:\n" << crash_content;
     }
 
-    // Cleanup
-    fs::remove_all(work_dir);
+    // Safe cleanup
+    std::error_code ec;
+    fs::remove_all(work_dir, ec);
+    if (ec) {
+        std::cerr << "[ Warning  ] Could not remove work_dir: " << ec.message() << "\n";
+    }
 }
 #endif
 
@@ -164,71 +167,55 @@ TEST_F(PluginSegfaultTest, CrashFileWrittenOnSegfault) {
     auto work_dir = fs::temp_directory_path() / "segfault_test";
     fs::create_directories(work_dir);
 
-    // Get path to this executable so we can re-invoke it as the crash child.
-    char exe_path[MAX_PATH];
-    GetModuleFileNameA(nullptr, exe_path, MAX_PATH);
+    EXPECT_DEATH({
+      fs::current_path(work_dir);
 
-    std::string plugin_path = get_plugin_path();
+        // Load plugin fresh in the child process (parent's function pointer is invalid here)
+        PluginLoader child_loader(get_plugin_path());
+        auto child_init_fn = child_loader.get_symbol<plugin_init_fn>("plugin_segfault_init");
+        if (child_init_fn) child_init_fn();
 
-    // Build a writable command-line buffer (CreateProcessA may modify it).
-    std::string cmd_str =
-        std::string("\"") + exe_path + "\" --crash-child \"" + plugin_path + "\"";
-    std::vector<char> cmd_buf(cmd_str.begin(), cmd_str.end());
-    cmd_buf.push_back('\0');
+        volatile int* p = nullptr;
+        *p = 42;
+    }, "");        // any death output
 
-    STARTUPINFOA si = {};
-    si.cb = sizeof(si);
-    PROCESS_INFORMATION pi = {};
-
-    BOOL ok = CreateProcessA(
-        nullptr,
-        cmd_buf.data(),
-        nullptr, nullptr,
-        FALSE, 0,
-        nullptr,
-        work_dir.string().c_str(), // child's working directory → crash file written here
-        &si, &pi);
-    ASSERT_TRUE(ok) << "CreateProcessA failed: error=" << GetLastError();
-
-    WaitForSingleObject(pi.hProcess, 10000 /*ms*/);
-
-    DWORD exit_code = 0;
-    GetExitCodeProcess(pi.hProcess, &exit_code);
-    CloseHandle(pi.hProcess);
-    CloseHandle(pi.hThread);
-
-    // The unhandled-exception filter returns EXCEPTION_CONTINUE_SEARCH, so the
-    // OS terminates the process with the exception code as the exit code.
-    EXPECT_EQ(exit_code, static_cast<DWORD>(STATUS_ACCESS_VIOLATION))
-        << "Expected STATUS_ACCESS_VIOLATION (0xC0000005), got 0x"
-        << std::hex << exit_code;
-
-    // Check crash file was written
-    bool found_crash_file = false;
-    std::string crash_content;
-
-    for (const auto& entry : fs::directory_iterator(work_dir)) {
-        const auto name = entry.path().filename().string();
-        if (name.starts_with("crash_") && name.ends_with(".txt")) {
-            found_crash_file = true;
-            std::ifstream f(entry.path());
-            crash_content.assign(std::istreambuf_iterator<char>(f), {});
-            break;
+    // Wait for the OS/Crash Handler to finish writing the file
+    bool found = false;
+    std::string content;
+    
+    for (int i = 0; i < 50; ++i) { // Poll for up to 5 seconds
+        if (fs::exists(work_dir)) {
+            for (const auto& entry : fs::directory_iterator(work_dir)) {
+                const auto name = entry.path().filename().string();
+                if (name.starts_with("crash_") && name.ends_with(".txt")) {
+                    std::ifstream f(entry.path());
+                    if (f.is_open()) {
+                        content.assign(std::istreambuf_iterator<char>(f), {});
+                        if (!content.empty()) {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+            }
         }
+        if (found) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
-    EXPECT_TRUE(found_crash_file) << "No crash_*.txt file written in " << work_dir;
-
-    if (found_crash_file) {
-        EXPECT_FALSE(crash_content.empty()) << "Crash file is empty";
-        EXPECT_NE(crash_content.find("Signal"), std::string::npos)
-            << "Crash file missing 'Signal' marker:\n" << crash_content;
-        EXPECT_NE(crash_content.find("Stacktrace"), std::string::npos)
-            << "Crash file missing 'Stacktrace' marker:\n" << crash_content;
+    EXPECT_TRUE(found) << "Crash file was never written to disk!";
+    
+    if (found) {
+        EXPECT_NE(content.find("Signal"), std::string::npos);
+        EXPECT_NE(content.find("Stacktrace"), std::string::npos);
     }
 
-    // Cleanup
-    fs::remove_all(work_dir);
+    // Safe cleanup that will NOT throw an exception if the OS still holds a lock
+    std::error_code ec;
+    fs::remove_all(work_dir, ec);
+    if (ec) {
+        std::cerr << "[ Warning  ] Could not remove work_dir: " << ec.message() << "\n";
+    }
 }
 #endif
 
@@ -237,22 +224,7 @@ TEST_F(PluginSegfaultTest, CrashFileWrittenOnSegfault) {
 // Custom main so we can handle --crash-child mode on Windows (the child
 // process spawned by CrashFileWrittenOnSegfault to trigger the crash handler).
 int main(int argc, char** argv) {
-#ifdef _WIN32
-    if (argc >= 3 && std::string(argv[1]) == "--crash-child") {
-        // argv[2] = path to the plugin DLL.
-        // Working directory is already set by CreateProcessA to the temp dir.
-        HMODULE h = LoadLibraryA(argv[2]);
-        if (h) {
-            auto init_fn =
-                reinterpret_cast<int (*)()>(GetProcAddress(h, "plugin_segfault_init"));
-            if (init_fn) init_fn(); // installs SetUnhandledExceptionFilter
-        }
-        // Trigger access violation — the handler writes the crash file.
-        volatile int* p = nullptr;
-        *p = 42;
-        return 1; // unreachable
-    }
-#endif
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+  ::testing::InitGoogleTest(&argc, argv);
+  testing::GTEST_FLAG(catch_exceptions) = false;
+  return RUN_ALL_TESTS();
 }

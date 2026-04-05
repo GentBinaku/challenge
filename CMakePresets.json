@@ -58,6 +58,7 @@
     {
       "name": "conan-release",
       "configurePreset": "conan-release",
+      "configuration": "Release",
       "description": "Run tests (Release mode)",
       "output": {
         "outputOnFailure": true
@@ -70,6 +71,7 @@
     {
       "name": "conan-debug",
       "configurePreset": "conan-debug",
+      "configuration": "Debug",
       "description": "Run tests (Debug mode)",
       "output": {
         "outputOnFailure": true
