@@ -54,11 +54,11 @@ if(BUILD_TESTING)
 endif()
 
 
-if(CMAKE_EXPORT_COMPILE_COMMANDS)
+if(CMAKE_EXPORT_COMPILE_COMMANDS AND NOT WIN32)
     file(CREATE_LINK
         "${CMAKE_BINARY_DIR}/compile_commands.json"
         "${CMAKE_SOURCE_DIR}/compile_commands.json"
-        SYMBOLIC)
+        SYMBOLIC COPY_ON_ERROR)
 endif()
 
 # Install third-party shared libraries copied by conanfile.py
